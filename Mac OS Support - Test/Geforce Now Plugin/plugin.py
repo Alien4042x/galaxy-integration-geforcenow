@@ -69,13 +69,12 @@ class PluginExample(Plugin):
         gfn_site = 'api-prod.nvidia.com'
 
         conn = http.client.HTTPSConnection(gfn_site, timeout=20)
-        payload = "{apps(country:\"DE\" language:\"de_DE\"){numberReturned,pageInfo{endCursor,hasNextPage},items{title,sortName,variants{appStore,publisherName,id}}}}\r\n"
+        payload = "{apps(country:\"US\" language:\"en_US\"){numberReturned,pageInfo{endCursor,hasNextPage},items{title,sortName,variants{appStore,publisherName,id}}}}\r\n"
         conn.request("POST", "/gfngames/v1/gameList", payload)
         res = conn.getresponse()
 
         gfn_games = []
         gfn_steam = []
-        gfn_library = []
         gfn_ids = {}
 
         if res.status == 200:
@@ -92,7 +91,6 @@ class PluginExample(Plugin):
 					
                     gg_id = await self.gfn_convert(store, name)
                     gfn_games.append(gg_id)      
-                    gfn_library.append(gg_id)
                     gfn_ids[gg_id] = id
         else:
             log.error("Failure contacting GFN server, response code: {0}".format(res.status))
