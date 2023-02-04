@@ -122,18 +122,18 @@ class PluginExample(Plugin):
                             w = csv.writer(f, delimiter=',')
                             my_dict = {gg_id: 1, id : 2}
                             w.writerow(my_dict)
-			
+                            
             elif response.status_code == 500:#Try again
                 self.get_API(_payload)
             else:
                 log.error("Failure contacting GFN server, response code: {0}".format(response.status_code))
 
-        except requests.Timeout as st:#Try again
+        except requests.Timeout as st:
             log.debug(st)
             asyncio.sleep(5)
-            self.get_API(_payload)
+            self.get_API(_payload)#Try again
 
-    async def get_games(self):
+    def _gfn_mapping(self):
         global local_games
         global gfn_mappings
 
@@ -146,7 +146,9 @@ class PluginExample(Plugin):
                 log.debug('Mappings: {0}'.format(str(self.gfn_mappings)))
         else:
             log.debug('Could not find mappings file [{0}]'.format(str(mappings_file)))
-
+    async def get_games(self):
+        #self._gfn_mapping()
+        
         self.check_update_library()
 
         with self.open_db() as cursor:
