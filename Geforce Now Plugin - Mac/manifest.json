@@ -1,0 +1,11 @@
+{
+    "name": "Geforce Now Plugin",
+    "platform": "test",
+    "guid": "07d770ba-7ad0-4bce-a372-369ee19f2f87",
+    "version": "0.3",
+    "description": "Geforce Now Plugin",
+    "author": "bertbert72,Alien4042x",
+    "email": "",
+    "url": "",
+    "script": "plugin.py"
+}
