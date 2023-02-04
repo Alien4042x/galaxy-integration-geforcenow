@@ -2,7 +2,6 @@ import sys
 import ssl
 import logging as log
 import csv
-from pathlib import Path
 import sqlite3
 import re
 import requests
@@ -16,13 +15,14 @@ from galaxy.api.plugin import Plugin, create_and_run_plugin
 from galaxy.api.consts import Platform, LocalGameState
 from galaxy.api.types import Authentication, Game, LicenseInfo, LicenseType, LocalGame
 
+# Constants
 STORE = 0
 TITLE = 1
 KEY = 2
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-class PluginExample(Plugin):
+class GFNPlugin(Plugin):
     def __init__(self, reader, writer, token):
         super().__init__(
             Platform.Test,  # choose platform from available list
@@ -138,7 +138,7 @@ class PluginExample(Plugin):
         global gfn_mappings
 
         self.gfn_mappings = {}
-        mappings_file = Path(__file__).resolve().parent.joinpath('gfn_mappings.csv')
+        mappings_file = pathlib.Path(__file__).resolve().parent.joinpath('gfn_mappings.csv')
         if mappings_file.is_file():
             with open(mappings_file, mode='r') as infile:
                 reader = csv.reader(infile)
@@ -146,6 +146,7 @@ class PluginExample(Plugin):
                 log.debug('Mappings: {0}'.format(str(self.gfn_mappings)))
         else:
             log.debug('Could not find mappings file [{0}]'.format(str(mappings_file)))
+    
     async def get_games(self):
         #self._gfn_mapping()
         
@@ -236,7 +237,7 @@ class PluginExample(Plugin):
 
 
 def main():
-    create_and_run_plugin(PluginExample, sys.argv)
+    create_and_run_plugin(GFNPlugin, sys.argv)
 
 # run plugin event loop
 if __name__ == "__main__":
