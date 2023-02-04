@@ -10,14 +10,19 @@ import http.client
 import os
 import subprocess
 import socket
+from datetime import datetime
+import pathlib
+import asyncio
 from contextlib import contextmanager
 from galaxy.api.plugin import Plugin, create_and_run_plugin
 from galaxy.api.consts import Platform, LocalGameState
 from galaxy.api.types import Authentication, Game, LicenseInfo, LicenseType, LocalGame
 
-PLATFORM = 0
+STORE = 0
 TITLE = 1
 KEY = 2
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 class PluginExample(Plugin):
     def __init__(self, reader, writer, token):
@@ -59,8 +64,38 @@ class PluginExample(Plugin):
             log.debug('Translating {0} to {1}', _original, translated)
 
         return translated
-
-    def get_API(self, _paylad : str):
+    
+    def check_update_library(self):
+        check_file = pathlib.Path(dir_path + '/last_update.txt')
+        if (check_file.exists()):
+            self.load_library()
+            log.debug("Loading Library")
+        else:
+            log.debug("Update Library")
+            self.last_update()
+            
+            self.get_API("") #Get all games from Geforce Now library
+            self.get_API("after:\"NzUw\"")
+            self.get_API("after:\"MTUwMA==\"")
+            asyncio.sleep(15)
+            self.load_library()
+            
+    def last_update(self):
+        with open(dir_path + '/last_update.txt', 'w+') as w:
+            current_dateTime = datetime.now()
+            w.write(str(current_dateTime.date()))
+            
+        with open(dir_path + '/gfn_library.csv', 'w+'):
+            pass
+        
+    def load_library(self):
+        with open(dir_path + '/gfn_library.csv', mode='r') as infile:
+            reader = csv.reader(infile,delimiter=',')
+            for row in reader:     
+                self.gfn_games.append(row[0])
+                self.gfn_ids[row[0]] = row[1]
+        
+    def get_API(self, _payload : str):
         try:
             gfn_site = 'api-prod.nvidia.com'
             headers = {'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
@@ -69,7 +104,7 @@ class PluginExample(Plugin):
                                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'}
 
             conn = http.client.HTTPSConnection(gfn_site, timeout=5)
-            conn.request("POST", "/gfngames/v1/gameList", "{apps(country:\"US\" language:\"en_US\""+_paylad+"){numberReturned,pageInfo{endCursor,hasNextPage},items{title,sortName,variants{appStore,publisherName,id}}}}\r\n",headers=headers)
+            conn.request("POST", "/gfngames/v1/gameList", "{apps(country:\"US\" language:\"en_US\""+_payload+"){numberReturned,pageInfo{endCursor,hasNextPage},items{title,sortName,variants{appStore,publisherName,id}}}}\r\n",headers=headers)
             res = conn.getresponse()
             if res.status == 200:
                 data = res.read().decode("utf-8")
@@ -85,15 +120,17 @@ class PluginExample(Plugin):
                         id = variant['id']
 
                         gg_id = self.gfn_convert(store, name)
-                        self.gfn_games.append(gg_id)
-                        self.gfn_ids[gg_id] = id
+                        
+                        with open(dir_path + '/gfn_library.csv', 'a') as f:
+                            w = csv.writer(f, delimiter=',')
+                            my_dict = {gg_id: 1, id : 2}
+                            w.writerow(my_dict)
             else:
                 log.error("Failure contacting GFN server, response code: {0}".format(res.status))
 
         except socket.timeout as st:
             log.debug(st)
-            #log.debug(_paylad)
-            self.get_API(_paylad)
+            self.get_API(_payload)
 
         except ValueError as e:
             log.error(e)
@@ -112,9 +149,7 @@ class PluginExample(Plugin):
         else:
             log.debug('Could not find mappings file [{0}]'.format(str(mappings_file)))
 
-        self.get_API("")
-        self.get_API("after:\"NzUw\"")
-        self.get_API("after:\"MTUwMA==\"")
+        self.check_update_library()
 
         with self.open_db() as cursor:
             sql = """
@@ -133,17 +168,17 @@ class PluginExample(Plugin):
         #log.debug("GFN ids: {0}".format(gfn_ids))
 
         for game in owned_games:
-            own = self.gfn_convert(game[0], game[1])
+            own = self.gfn_convert(game[STORE], game[TITLE])
             for gfn in self.gfn_games:
                 if(gfn == own):
                     game_id = ''
                     if gfn in self.gfn_games:
                         game_id = 'gfn_' + str(self.gfn_ids[gfn])
                     #else:
-                        #log.debug("Not found {0}: {1} [{2}]".format(game[PLATFORM], game[TITLE], gfn))
+                        #log.debug("Not found {0}: {1} [{2}]".format(game[STORE], game[TITLE], gfn))
 
                     if game_id != '':
-                        #log.debug("Found {0}: {1} [{2}] [{3}]".format(game[PLATFORM], game[TITLE], gfn, game_id))
+                        #log.debug("Found {0}: {1} [{2}] [{3}]".format(game[STORE], game[TITLE], gfn, game_id))
                         matched_games.append(Game(game_id, game[TITLE], None, LicenseInfo(LicenseType.SinglePurchase)))
                         local_game = LocalGame(game_id, LocalGameState.Installed)
                         self.local_games.append(local_game)
@@ -180,8 +215,6 @@ class PluginExample(Plugin):
 
     async def launch_game(self, game_id):
         gfn_id = game_id.replace('gfn_', '')
-
-        dir_path = os.path.dirname(os.path.realpath(__file__))
         get_file = dir_path + '/gfn_play/GFC_Runner.gfnpc'
         log.debug("File_Path: "+ get_file)
         with open(get_file, 'w') as f:
