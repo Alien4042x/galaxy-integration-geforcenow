@@ -122,12 +122,13 @@ class PluginExample(Plugin):
                             w = csv.writer(f, delimiter=',')
                             my_dict = {gg_id: 1, id : 2}
                             w.writerow(my_dict)
-            elif response.status_code == 500:
+			
+            elif response.status_code == 500:#Try again
                 self.get_API(_payload)
             else:
                 log.error("Failure contacting GFN server, response code: {0}".format(response.status_code))
 
-        except requests.Timeout as st:
+        except requests.Timeout as st:#Try again
             log.debug(st)
             asyncio.sleep(5)
             self.get_API(_payload)
