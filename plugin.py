@@ -64,22 +64,25 @@ class GFNPlugin(Plugin):
 
     def check_update_library(self):
         check_file = pathlib.Path(dir_path + '/last_update.txt')
-        if (check_file.exists()):
-            self.load_library()
-            log.debug("Loading Library")
+        if(check_file.exists()):
+            if (self.check_date() == str(datetime.now().date())):
+                self.load_library()
+                log.debug("Loading Library")
+            else:
+                log.debug("Update Library")
+                self.update_library()
+                
         else:
             log.debug("Update Library")
-            self.last_update()
+            self.update_library()
+    
+    def check_date(self):
+        with open(dir_path + '/last_update.txt', 'r') as r:
+            current_dateTime = r.read()     
+        return str(current_dateTime)
             
-            self.get_API("") #Get all games from Geforce Now library
-            asyncio.sleep(5)
-            self.get_API("after:\"NzUw\"")
-            asyncio.sleep(5)
-            self.get_API("after:\"MTUwMA==\"")
-            asyncio.sleep(15)
-            self.load_library()
             
-    def last_update(self):
+    def create_basic_files(self):
         with open(dir_path + '/last_update.txt', 'w+') as w:
             current_dateTime = datetime.now()
             w.write(str(current_dateTime.date()))
@@ -93,6 +96,17 @@ class GFNPlugin(Plugin):
             for row in reader:     
                 self.gfn_games.append(row[0])
                 self.gfn_ids[row[0]] = row[1]
+    
+    def update_library(self):
+        self.create_basic_files()
+                
+        self.get_API("") #Get all games from Geforce Now library
+        asyncio.sleep(5)
+        self.get_API("after:\"NzUw\"")
+        asyncio.sleep(5)
+        self.get_API("after:\"MTUwMA==\"")
+        asyncio.sleep(15)
+        self.load_library()
     
     def get_API(self, _payload : str):
         try:
