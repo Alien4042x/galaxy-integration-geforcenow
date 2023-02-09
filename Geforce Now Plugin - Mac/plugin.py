@@ -92,8 +92,8 @@ class GFNPlugin(Plugin):
             pass
         
     def load_library(self):
-        with open(dir_path + '/gfn_library.csv', mode='r') as infile:
-            reader = csv.reader(infile,delimiter=',')
+        with open(dir_path + '/gfn_library.csv', 'r') as lib:
+            reader = csv.reader(lib,delimiter=',')
             for row in reader:     
                 self.gfn_games.append(row[0])
                 self.gfn_ids[row[0]] = row[1]
@@ -116,8 +116,10 @@ class GFNPlugin(Plugin):
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'en-US,en;q=0.9',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'}
+            
+            session = requests.Session()
             _payload = f'{{apps(country:"US" language:"en_US" {_payload}){{numberReturned,pageInfo{{endCursor,hasNextPage}},items{{title,sortName,variants{{appStore,publisherName,id}}}}}}}}\r\n'
-            response = requests.post(url, headers=headers, data=_payload, timeout=5)
+            response = session.post(url, headers=headers, data=_payload, timeout=5)
             
             if response.status_code == 200:
                 json_data = response.json()
@@ -154,7 +156,7 @@ class GFNPlugin(Plugin):
         self.gfn_mappings = {}
         mappings_file = pathlib.Path(__file__).resolve().parent.joinpath('gfn_mappings.csv')
         if mappings_file.is_file():
-            with open(mappings_file, mode='r') as infile:
+            with open(mappings_file, 'r') as infile:
                 reader = csv.reader(infile)
                 self.gfn_mappings = {rows[0]: rows[1] for rows in reader}
                 log.debug('Mappings: {0}'.format(str(self.gfn_mappings)))
@@ -162,7 +164,7 @@ class GFNPlugin(Plugin):
             log.debug('Could not find mappings file [{0}]'.format(str(mappings_file)))
     
     async def get_games(self):
-        #self._gfn_mapping()
+        self._gfn_mapping()
         
         self.check_update_library()
 
@@ -187,8 +189,11 @@ class GFNPlugin(Plugin):
             for gfn in self.gfn_games:
                 if(gfn == own):
                     game_id = ''
+                    test_title = self.name_fix(gfn)
                     if gfn in self.gfn_games:
                         game_id = 'gfn_' + str(self.gfn_ids[gfn])
+                    elif gfn in test_title:
+                        game_id = 'gfn_' + str(self.gfn_ids[test_title]) 
                     #else:
                         #log.debug("Not found {0}: {1} [{2}]".format(game[STORE], game[TITLE], gfn))
 
