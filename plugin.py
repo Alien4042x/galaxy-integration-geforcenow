@@ -115,8 +115,10 @@ class GFNPlugin(Plugin):
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'en-US,en;q=0.9',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'}
+            
+            session = requests.Session()
             _payload = f'{{apps(country:"US" language:"en_US" {_payload}){{numberReturned,pageInfo{{endCursor,hasNextPage}},items{{title,sortName,variants{{appStore,publisherName,id}}}}}}}}\r\n'
-            response = requests.post(url, headers=headers, data=_payload, timeout=5)
+            response = session.post(url, headers=headers, data=_payload, timeout=5)
             
             if response.status_code == 200:
                 json_data = response.json()
