@@ -29,7 +29,7 @@ Now the features:
 # Installation for Mac OS
 
 * Download the release
-* Unzip into your plugins folder, usually `/Applications/GOG\ Galaxy.app/Contents/Resources/Plugins/`
+* Unzip into your plugins folder, usually `/Library/Application Support/GOG.com/Galaxy/plugins/installed`
 * Restart GOG Galaxy
 * Go to Setting and connect the Testing integration
 * Cross fingers
