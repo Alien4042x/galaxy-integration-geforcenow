@@ -119,7 +119,7 @@ class GFNPlugin(Plugin):
             
             session = requests.Session()
             _payload = f'{{apps(country:"US" language:"en_US" {_payload}){{numberReturned,pageInfo{{endCursor,hasNextPage}},items{{title,sortName,variants{{appStore,publisherName,id}}}}}}}}\r\n'
-            response = session.post(url, headers=headers, data=_payload, timeout=5)
+            response = session.post(url, headers=headers, data=_payload, timeout=20)
             
             if response.status_code == 200:
                 json_data = response.json()
