@@ -164,7 +164,7 @@ class GFNPlugin(Plugin):
             log.debug('Could not find mappings file [{0}]'.format(str(mappings_file)))
     
     async def get_games(self):
-        self._gfn_mapping()
+        #self._gfn_mapping()
         
         self.check_update_library()
 
@@ -189,11 +189,8 @@ class GFNPlugin(Plugin):
             for gfn in self.gfn_games:
                 if(gfn == own):
                     game_id = ''
-                    test_title = self.name_fix(gfn)
                     if gfn in self.gfn_games:
                         game_id = 'gfn_' + str(self.gfn_ids[gfn])
-                    elif gfn in test_title:
-                        game_id = 'gfn_' + str(self.gfn_ids[test_title]) 
                     #else:
                         #log.debug("Not found {0}: {1} [{2}]".format(game[STORE], game[TITLE], gfn))
 
