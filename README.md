@@ -1,4 +1,4 @@
-WARNING!!!!!
+Important!!!!!
 I am currently working on the project, but I am continuously facing issues with the database. This is due to GOG having trouble processing a large amount of text at once.
 
 # galaxy-integration-geforcenow
