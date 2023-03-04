@@ -9,6 +9,7 @@ import os
 import subprocess
 from datetime import datetime
 import pathlib
+import json
 import asyncio
 from contextlib import contextmanager
 from galaxy.api.plugin import Plugin, create_and_run_plugin
@@ -36,6 +37,11 @@ class GFNPlugin(Plugin):
     # implement methods
     gfn_games = []
     gfn_ids = {}
+    
+    #variables and other
+    _data = None
+    json_loaded = False
+    file_names = ["cache.json", "cache2.json", "cache3.json"]
 
     def gfn_convert(self,_store: str,_title: str):
         _store = _store.lower()
@@ -63,19 +69,19 @@ class GFNPlugin(Plugin):
 
         return translated
     
-    def check_update_library(self):
+    async def check_update_library(self):
         check_file = pathlib.Path(dir_path + '/last_update.txt')
         if(check_file.exists()):
             if (self.check_date() == str(datetime.now().date())):
-                self.load_library()
-                log.debug("Loading Library")
+                await self.load_library()
+                log.debug("Load Library")
             else:
                 log.debug("Update Library")
-                self.update_library()
+                await self.update_library()
                 
         else:
             log.debug("Update Library")
-            self.update_library()
+            await self.update_library()
     
     def check_date(self):
         with open(dir_path + '/last_update.txt', 'r') as r:
@@ -90,64 +96,92 @@ class GFNPlugin(Plugin):
             
         with open(dir_path + '/gfn_library.csv', 'w+'):
             pass
-        
-    def load_library(self):
-        with open(dir_path + '/gfn_library.csv', 'r') as lib:
-            reader = csv.reader(lib,delimiter=',')
-            for row in reader:     
-                self.gfn_games.append(row[0])
-                self.gfn_ids[row[0]] = row[1]
     
-    def update_library(self):
-        self.create_basic_files()
-                
-        self.get_API("") #Get all games from Geforce Now library
-        asyncio.sleep(5)
-        self.get_API("after:\"NzUw\"")
-        asyncio.sleep(5)
-        self.get_API("after:\"MTUwMA==\"")
-        asyncio.sleep(15)
-        self.load_library()
+    async def create_library(self):
+        global _data
+        global json_loaded
         
-    def get_API(self, _payload : str):
-        try:
-            url = "https://api-prod.nvidia.com/gfngames/v1/gameList"
-            headers = {'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            'Accept-Encoding': 'gzip, deflate',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'}
-            
-            session = requests.Session()
-            _payload = f'{{apps(country:"US" language:"en_US" {_payload}){{numberReturned,pageInfo{{endCursor,hasNextPage}},items{{title,sortName,variants{{appStore,publisherName,id}}}}}}}}\r\n'
-            response = session.post(url, headers=headers, data=_payload, timeout=20)
-            
-            if response.status_code == 200:
-                json_data = response.json()
+        i = 0
+        while(i < len(self.file_names)):
+            if not self.json_loaded:
+            # load data from JSON file
+                with open(dir_path + '/' + self.file_names[i], 'r') as f:
+                    _data = json.load(f)
+                    i = i + 1
                 
-                items = json_data['data']['apps']['items']
+                json_loaded = True
+        
+            # save data into gfn gfn_library file
+            items = _data['data']['apps']['items']
+            with open(dir_path + '/gfn_library.csv', 'a') as f:
+                w = csv.writer(f, delimiter=',')
                 for item in items:
                     name = item['title']
                     variants = item['variants']
                     for variant in variants:
                         store = variant['appStore']
                         id = variant['id']
-
+                        
                         gg_id = self.gfn_convert(store, name)
                         
-                        with open(dir_path + '/gfn_library.csv', 'a') as f:
-                            w = csv.writer(f, delimiter=',')
-                            my_dict = {gg_id: 1, id : 2}
-                            w.writerow(my_dict)
+                        my_dict = {gg_id: 1, id : 2}
+                        w.writerow(my_dict)
+                                
+        os.remove(dir_path + '/' + self.file_names[0])
+        os.remove(dir_path + '/' + self.file_names[1])
+        os.remove(dir_path + '/' + self.file_names[2])
+        
+    async def load_library(self): 
+        if os.stat(dir_path + '/gfn_library.csv').st_size == 0:
+            await self.update_library()
+        else:
+            with open(dir_path + '/gfn_library.csv', 'r') as lib:
+                reader = csv.reader(lib,delimiter=',')
+                for row in reader:     
+                    self.gfn_games.append(row[0])
+                    self.gfn_ids[row[0]] = row[1]
+    
+    async def update_library(self):
+        self.create_basic_files()
+                
+        await self.get_API("",self.file_names[0]) #Get all games from Geforce Now library
+        await self.get_API("after:\"NzUw==\"",self.file_names[1])
+        await self.get_API("after:\"MTUwMA==\"",self.file_names[2]) 
+        
+        await self.create_library()
+        
+    async def get_API(self, payload : str, cache_file : str):
+        log.debug(payload)
+        log.debug(cache_file)
+        while (True):
+            try:  
+                url = "https://api-prod.nvidia.com/gfngames/v1/gameList"
+                headers = {'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                            'Accept-Encoding': 'gzip, deflate',
+                            'Accept-Language': 'en-US,en;q=0.9',
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'}
+                
+                session = requests.Session()
+                _payload = f'{{apps(country:"US" language:"en_US" {payload}){{numberReturned,pageInfo{{endCursor,hasNextPage}},items{{title,sortName,variants{{appStore,publisherName,id}}}}}}}}\r\n'   
+                response = session.post(url, headers=headers, data=_payload.encode('utf-8'), timeout=10, stream=True)
+                    
+                if response.status_code == 200:
+                    json_data = response.json()
+                    with open(dir_path + '/' + cache_file, 'w') as f:
+                        json.dump(json_data, f)
+                        response.close()
+                        break
+                elif response.status_code == 500:
+                    asyncio.sleep(5)
+                    await self.get_API(payload,cache_file)
+                    log.debug("500")
+                else:
+                    log.debug("Failure contacting GFN server, response code: {0}".format(response.status_code))
                             
-            elif response.status_code == 500:#Try again
-                self.get_API(_payload)
-            else:
-                log.error("Failure contacting GFN server, response code: {0}".format(response.status_code))
-
-        except requests.Timeout as st:
-            log.debug(st)
-            asyncio.sleep(5)
-            self.get_API(_payload)#Try again
+            except requests.Timeout as st:
+                log.debug(st)
+                asyncio.sleep(10)
+                await self.get_API(payload,cache_file)#Try again
 
     def _gfn_mapping(self):
         global local_games
@@ -156,7 +190,7 @@ class GFNPlugin(Plugin):
         self.gfn_mappings = {}
         mappings_file = pathlib.Path(__file__).resolve().parent.joinpath('gfn_mappings.csv')
         if mappings_file.is_file():
-            with open(mappings_file, 'r') as infile:
+            with open(mappings_file, mode='r') as infile:
                 reader = csv.reader(infile)
                 self.gfn_mappings = {rows[0]: rows[1] for rows in reader}
                 log.debug('Mappings: {0}'.format(str(self.gfn_mappings)))
@@ -166,7 +200,9 @@ class GFNPlugin(Plugin):
     async def get_games(self):
         #self._gfn_mapping()
         
-        self.check_update_library()
+        await self.check_update_library()
+        
+        await self.load_library()
 
         with self.open_db() as cursor:
             sql = """
@@ -251,9 +287,8 @@ class GFNPlugin(Plugin):
         log.debug('Local games: {0}'.format(self.local_games))
         return self.local_games
 
-
 def main():
-    create_and_run_plugin(GFNPlugin, sys.argv)
+        create_and_run_plugin(GFNPlugin, sys.argv) 
 
 # run plugin event loop
 if __name__ == "__main__":
