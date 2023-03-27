@@ -168,11 +168,10 @@ class GFNPlugin(Plugin):
                         json_data = response.json()
                         with open(dir_path + "/" + cache_file, "w",encoding="utf-8") as f:
                             json.dump(json_data, f)
-                            await response.aclose()
+                            
                 elif response.status_code == 500:
                         await asyncio.sleep(5)
                         await self.get_API(payload, cache_file)
-                        await response.aclose()
                 else:
                         log.debug(
                             "Failure contacting GFN server, response code: {0}".format(
