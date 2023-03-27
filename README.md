@@ -1,4 +1,4 @@
-Important!!!!!
+Important!!!!! <br>
 I'm happy to report that the plugin is now downloading games from the Nvidia database without any issues. However, there is still a problem with loading games. Sometimes the games won't load properly and the application needs to be restarted. I'm currently working on resolving this issue, but if anyone else would like to help with the project, I would greatly appreciate it.
 
 # galaxy-integration-geforcenow
