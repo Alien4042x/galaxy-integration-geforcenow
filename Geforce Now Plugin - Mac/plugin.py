@@ -285,9 +285,9 @@ class GFNPlugin(Plugin):
     local_games = []
     gfn_mappings = {}
     # required
-    async def get_local_games(self) -> List[LocalGame]:
+    async def get_local_games(self):
         global local_games
-        await asyncio.sleep(2)
+        await asyncio.sleep(3)
         log.debug('Local games: {0}'.format(self.local_games))
         return self.local_games
 
