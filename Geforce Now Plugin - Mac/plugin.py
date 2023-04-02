@@ -33,6 +33,8 @@ class GFNPlugin(Plugin):
             writer,
             token
         )
+        self.local_games = []
+        self.matched_games_cache = []
         ssl._create_default_https_context = ssl._create_unverified_context
 
     # implement methods
@@ -218,8 +220,6 @@ class GFNPlugin(Plugin):
             cursor.execute(sql)
             owned_games = list(cursor.fetchall())
 
-        matched_games = []
-        self.local_games = []
         #log.debug("GFN games: {0}".format(gfn_games))
         #log.debug("GFN ids: {0}".format(gfn_ids))
 
@@ -235,12 +235,12 @@ class GFNPlugin(Plugin):
 
                     if game_id != '':
                         #log.debug("Found {0}: {1} [{2}] [{3}]".format(game[STORE], game[TITLE], gfn, game_id))
-                        matched_games.append(Game(game_id, game[TITLE], None, LicenseInfo(LicenseType.SinglePurchase)))
+                        self.matched_games_cache.append(Game(game_id, game[TITLE], None, LicenseInfo(LicenseType.SinglePurchase)))
                         local_game = LocalGame(game_id, LocalGameState.Installed)
                         self.local_games.append(local_game)
 
-        log.debug('Matched games: {0}'.format(str(matched_games)))
-        return matched_games
+        log.debug('Matched games: {0}'.format(str(self.matched_games_cache)))
+        return self.matched_games_cache
 
     @contextmanager
     def open_db(self):
@@ -281,12 +281,8 @@ class GFNPlugin(Plugin):
         #log.debug("Launch command is {0}".format(gfn_app))
 
         subprocess.Popen(['open', get_file])
-
-    local_games = []
-    gfn_mappings = {}
     # required
     async def get_local_games(self):
-        global local_games
         await asyncio.sleep(3)
         log.debug('Local games: {0}'.format(self.local_games))
         return self.local_games
