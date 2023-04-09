@@ -6,7 +6,6 @@ import sqlite3
 import re
 import httpx
 import json
-from typing import List
 import os
 import subprocess
 from datetime import datetime
@@ -28,21 +27,20 @@ class GFNPlugin(Plugin):
     def __init__(self, reader, writer, token):
         super().__init__(
             Platform.Test,  # choose platform from available list
-            "0.3",  # version
+            "0.8",  # version
             reader,
             writer,
             token
         )
+        
         self.local_games = []
         self.matched_games_cache = []
+        self.gfn_games = []
+        self.gfn_ids = {}
+        self.file_names = ["cache.json", "cache2.json", "cache3.json"]
+        self._data = None
+        self.json_loaded = False
         ssl._create_default_https_context = ssl._create_unverified_context
-
-    # implement methods
-    gfn_games = []
-    gfn_ids = {}
-    file_names = ["cache.json", "cache2.json", "cache3.json"]
-    _data = None
-    json_loaded = False
 
     def gfn_convert(self,_store: str,_title: str):
         _store = _store.lower()
@@ -58,28 +56,12 @@ class GFNPlugin(Plugin):
             _title = _title.rstrip(_title[-1])
 
         return _store + '_' + _title
-
-    async def name_fix(self, _original: str):
-        global gfn_mappings
-
-        translated = _original
-
-        if _original in self.gfn_mappings:
-            translated = self.gfn_mappings[_original]
-            log.debug('Translating {0} to {1}', _original, translated)
-
-        return translated
     
     async def check_update_library(self):
         check_file = pathlib.Path(dir_path + '/last_update.txt')
-        if(check_file.exists()):
-            if (self.check_date() == str(datetime.now().date())):
-                self.load_library()
-                log.debug("Loading Library")
-            else:
-                log.debug("Update Library")
-                await self.update_library()
-                
+        if check_file.exists() and self.check_date() == str(datetime.now().date()):
+            log.debug("Loading Library")
+            self.load_library()
         else:
             log.debug("Update Library")
             await self.update_library()
@@ -187,60 +169,55 @@ class GFNPlugin(Plugin):
             log.debug(st)
             await asyncio.sleep(10)
             await self.get_API(payload, cache_file)  # Try again
-
-    def _gfn_mapping(self):
-        global local_games
-        global gfn_mappings
-
-        self.gfn_mappings = {}
-        mappings_file = pathlib.Path(__file__).resolve().parent.joinpath('gfn_mappings.csv')
-        if mappings_file.is_file():
-            with open(mappings_file, mode='r') as infile:
-                reader = csv.reader(infile)
-                self.gfn_mappings = {rows[0]: rows[1] for rows in reader}
-                log.debug('Mappings: {0}'.format(str(self.gfn_mappings)))
-        else:
-            log.debug('Could not find mappings file [{0}]'.format(str(mappings_file)))
     
-    async def get_games(self):
-        #self._gfn_mapping()
-        
-        await self.check_update_library()
-        
-        asyncio.create_task(self.get_local_games())
-        
+    async def get_database_id(self):
         with self.open_db() as cursor:
             sql = """
-                select distinct substr(gp.releaseKey,1,instr(gp.releaseKey,'_')-1) platform,
-                replace(substr(value,instr(value,':"')+2),'"}','') title, gp.releaseKey
-                from gamepieces gp
-                join gamepiecetypes gpt on gp.gamepiecetypeid = gpt.id
-                    where gpt.type = 'originalTitle' and gp.releaseKey not like 'test_%' and gp.releaseKey not like 'gfn_%'
+                SELECT releaseKey FROM gamepieces
+                WHERE releaseKey NOT LIKE 'test_%' AND releaseKey NOT LIKE 'gfn_%' AND substr(releaseKey, 1, instr(releaseKey, '_')-1) IN ('steam', 'epic', 'gog','origin','uplay')
             """
             cursor.execute(sql)
-            owned_games = list(cursor.fetchall())
+            game_id = list(cursor.fetchall())
+            return game_id
+    
+    async def get_games(self):
+        try:
+            await self.check_update_library()
+        
+            asyncio.create_task(self.get_local_games())
+            
+            with self.open_db() as cursor:
+                sql = """
+                    select distinct substr(gp.releaseKey,1,instr(gp.releaseKey,'_')-1) platform,
+                    replace(substr(value,instr(value,':"')+2),'"}','') title, gp.releaseKey
+                    from gamepieces gp
+                    join gamepiecetypes gpt on gp.gamepiecetypeid = gpt.id
+                        where gpt.type = 'title' and gp.releaseKey not like 'test_%' and gp.releaseKey not like 'gfn_%'
+                """
+                cursor.execute(sql)
+                owned_games = list(cursor.fetchall())
+            
+            for game in owned_games:
+                own = self.gfn_convert(game[STORE], game[TITLE])
 
-        #log.debug("GFN games: {0}".format(gfn_games))
-        #log.debug("GFN ids: {0}".format(gfn_ids))
+                # Search for a match using the startswith method
+                match = None
+                for gfn_game in self.gfn_games:
+                    if gfn_game.startswith(own):
+                        match = gfn_game
+                        break
 
-        for game in owned_games:
-            own = self.gfn_convert(game[STORE], game[TITLE])
-            for gfn in self.gfn_games:
-                if(gfn == own):
-                    game_id = ''
-                    if gfn in self.gfn_games:
-                        game_id = 'gfn_' + str(self.gfn_ids[gfn])
-                    #else:
-                        #log.debug("Not found {0}: {1} [{2}]".format(game[STORE], game[TITLE], gfn))
+                if match:
+                    game_id = 'gfn_' + str(self.gfn_ids[match])
+                    self.matched_games_cache.append(Game(game_id, game[TITLE], None, LicenseInfo(LicenseType.SinglePurchase)))
+                    local_game = LocalGame(game_id, LocalGameState.Installed)
+                    self.local_games.append(local_game)
 
-                    if game_id != '':
-                        #log.debug("Found {0}: {1} [{2}] [{3}]".format(game[STORE], game[TITLE], gfn, game_id))
-                        self.matched_games_cache.append(Game(game_id, game[TITLE], None, LicenseInfo(LicenseType.SinglePurchase)))
-                        local_game = LocalGame(game_id, LocalGameState.Installed)
-                        self.local_games.append(local_game)
 
-        log.debug('Matched games: {0}'.format(str(self.matched_games_cache)))
-        return self.matched_games_cache
+            log.debug('Matched games: {0}'.format(str(self.matched_games_cache)))
+            return self.matched_games_cache
+        except Exception as ex:
+            log.debug(ex)
 
     @contextmanager
     def open_db(self):
