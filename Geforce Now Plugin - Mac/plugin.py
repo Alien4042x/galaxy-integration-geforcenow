@@ -5,6 +5,7 @@ import csv
 import sqlite3
 import re
 import httpx
+import difflib
 import json
 import os
 import subprocess
@@ -206,6 +207,11 @@ class GFNPlugin(Plugin):
                     if gfn_game.startswith(own):
                         match = gfn_game
                         break
+                # Pokud není nalezena žádná shoda, použijte difflib
+                if not match:
+                    close_matches = difflib.get_close_matches(own, self.gfn_games, n=1, cutoff=0.9)
+                    if close_matches:
+                        match = close_matches[0]
 
                 if match:
                     game_id = 'gfn_' + str(self.gfn_ids[match])
@@ -260,7 +266,7 @@ class GFNPlugin(Plugin):
         subprocess.Popen(['open', get_file])
     # required
     async def get_local_games(self):
-        await asyncio.sleep(3)
+        await asyncio.sleep(1)
         log.debug('Local games: {0}'.format(self.local_games))
         return self.local_games
 
