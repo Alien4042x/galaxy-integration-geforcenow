@@ -196,7 +196,7 @@ class GFNPlugin(Plugin):
                     if gfn_game.startswith(own):
                         match = gfn_game
                         break
-                # Pokud není nalezena žádná shoda, použijte difflib
+                # If no match found, use difflib
                 if not match:
                     close_matches = difflib.get_close_matches(own, self.gfn_games, n=1, cutoff=0.9)
                     if close_matches:
