@@ -171,16 +171,6 @@ class GFNPlugin(Plugin):
             await asyncio.sleep(10)
             await self.get_API(payload, cache_file)  # Try again
     
-    async def get_database_id(self):
-        with self.open_db() as cursor:
-            sql = """
-                SELECT releaseKey FROM gamepieces
-                WHERE releaseKey NOT LIKE 'test_%' AND releaseKey NOT LIKE 'gfn_%' AND substr(releaseKey, 1, instr(releaseKey, '_')-1) IN ('steam', 'epic', 'gog','origin','uplay')
-            """
-            cursor.execute(sql)
-            game_id = list(cursor.fetchall())
-            return game_id
-    
     async def get_games(self):
         try:
             await self.check_update_library()
