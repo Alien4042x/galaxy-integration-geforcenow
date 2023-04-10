@@ -62,7 +62,7 @@ class GFNPlugin(Plugin):
         check_file = pathlib.Path(dir_path + '/last_update.txt')
         if check_file.exists() and self.check_date() == str(datetime.now().date()):
             log.debug("Loading Library")
-            self.load_library()
+            await self.load_library()
         else:
             log.debug("Update Library")
             await self.update_library()
@@ -72,18 +72,19 @@ class GFNPlugin(Plugin):
             current_dateTime = r.read()     
         return str(current_dateTime)
             
-            
     def create_basic_files(self):
-        with open(dir_path + '/last_update.txt', 'w+') as w:
-            current_dateTime = datetime.now()
-            w.write(str(current_dateTime.date()))
-            
-        with open(dir_path + '/gfn_library.csv', 'w+'):
-            pass
+        if not os.path.exists(dir_path + '/last_update.txt'):
+            with open(dir_path + '/last_update.txt', 'w+') as w:
+                current_dateTime = datetime.now()
+                w.write(str(current_dateTime.date()))
+                
+        if not os.path.exists(dir_path + '/gfn_library.csv'):
+            with open(dir_path + '/gfn_library.csv', 'w+'):
+                pass
         
-    def load_library(self): 
-        if os.stat(dir_path + '/gfn_library.csv').st_size == 0:
-            asyncio.run(self.update_library())
+    async def load_library(self): 
+        if not os.path.exists(dir_path + '/gfn_library.csv') or os.stat(dir_path + '/gfn_library.csv').st_size == 0:
+            await self.update_library()
         else:
             with open(dir_path + '/gfn_library.csv', 'r') as lib:
                 reader = csv.reader(lib,delimiter=',')
@@ -100,12 +101,9 @@ class GFNPlugin(Plugin):
         
         self.create_library()
         
-        self.load_library()
+        await self.load_library()
         
-    def create_library(self):
-        global _data
-        global json_loaded
-        
+    def create_library(self): 
         i = 0
         while(i < len(self.file_names)):
             if not self.json_loaded:
@@ -256,7 +254,7 @@ class GFNPlugin(Plugin):
         subprocess.Popen(['open', get_file])
     # required
     async def get_local_games(self):
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         log.debug('Local games: {0}'.format(self.local_games))
         return self.local_games
 
