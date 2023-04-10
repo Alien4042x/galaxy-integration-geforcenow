@@ -252,7 +252,7 @@ class GFNPlugin(Plugin):
         #log.debug("Launch command is {0}".format(gfn_app))
 
         subprocess.Popen(['open', get_file])
-    # required
+
     async def get_local_games(self):
         await asyncio.sleep(3)
         log.debug('Local games: {0}'.format(self.local_games))
