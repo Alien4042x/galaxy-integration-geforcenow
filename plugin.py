@@ -252,7 +252,7 @@ class GFNPlugin(Plugin):
         os.system(gfn_app)
     
     async def get_local_games(self):
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         log.debug('Local games: {0}'.format(self.local_games))
         return self.local_games
 
