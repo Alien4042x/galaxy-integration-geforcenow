@@ -59,10 +59,14 @@ class GFNPlugin(Plugin):
         return _store + '_' + _title
     
     async def check_update_library(self):
-        check_file = pathlib.Path(dir_path + '/last_update.txt')
-        if check_file.exists() and self.check_date() == str(datetime.now().date()):
-            log.debug("Loading Library")
-            await self.load_library()
+	check_file = pathlib.Path(dir_path + '/last_update.txt')
+        if check_file.exists():
+            if self.check_date() == str(datetime.now().date()):
+                log.debug("Loading Library")
+                await self.load_library()
+            else:
+                log.debug("Update Library")
+                await self.update_library()
         else:
             log.debug("Update Library")
             await self.update_library()
@@ -71,16 +75,13 @@ class GFNPlugin(Plugin):
         with open(dir_path + '/last_update.txt', 'r') as r:
             current_dateTime = r.read()     
         return str(current_dateTime)
-            
+
     def create_basic_files(self):
-        if not os.path.exists(dir_path + '/last_update.txt'):
-            with open(dir_path + '/last_update.txt', 'w+') as w:
-                current_dateTime = datetime.now()
-                w.write(str(current_dateTime.date()))
+        with open(dir_path + '/last_update.txt', 'w') as f:
+            f.write(str(datetime.now().date()))
                 
-        if not os.path.exists(dir_path + '/gfn_library.csv'):
-            with open(dir_path + '/gfn_library.csv', 'w+'):
-                pass
+        with open(dir_path + '/gfn_library.csv', 'w+'):
+            pass
         
     async def load_library(self): 
         if not os.path.exists(dir_path + '/gfn_library.csv') or os.stat(dir_path + '/gfn_library.csv').st_size == 0:
