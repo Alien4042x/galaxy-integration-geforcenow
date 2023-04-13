@@ -59,7 +59,7 @@ class GFNPlugin(Plugin):
         return _store + '_' + _title
     
     async def check_update_library(self):
-	check_file = pathlib.Path(dir_path + '/last_update.txt')
+        check_file = pathlib.Path(dir_path + '/last_update.txt')
         if check_file.exists():
             if self.check_date() == str(datetime.now().date()):
                 log.debug("Loading Library")
